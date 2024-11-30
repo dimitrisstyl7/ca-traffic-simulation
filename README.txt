@@ -90,8 +90,4 @@ the cumulative probability for those interarrival times. A sample CDF file is
 included in the root directory of the repositoryTo run the program, execute 
 the command
 
-    $ ./cats <nthread>
-
-where:
-    
-    <nthread> - the number of threads that you want to run the program with.
+    $ ./cats
