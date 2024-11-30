@@ -20,17 +20,24 @@ class Vehicle;
  */
 class Lane {
 private:
-    std::vector<std::deque<Vehicle*>> sites;
+    std::vector<std::deque<Vehicle *> > sites;
     int lane_num;
     int steps_to_spawn;
+
 public:
     Lane(Inputs inputs, int lane_num);
+
     int getSize();
+
     int getLaneNumber();
+
     bool hasVehicleInSite(int site);
-    int addVehicle(int site, Vehicle* vehicle_ptr);
+
+    int addVehicle(int site, Vehicle *vehicle_ptr);
+
     int removeVehicle(int site);
-    int attemptSpawn(Inputs inputs, std::vector<Vehicle*>* vehicles, int* next_id_ptr, CDF* interarrival_time_cdf);
+
+    int attemptSpawn(Inputs inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr, CDF *interarrival_time_cdf);
 #ifdef DEBUG
     void printLane();
 #endif

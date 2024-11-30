@@ -17,13 +17,17 @@
  */
 class Road {
 private:
-    std::vector<Lane*> lanes;
-    CDF* interarrival_time_cdf;
+    std::vector<Lane *> lanes;
+    CDF *interarrival_time_cdf;
+
 public:
     Road(Inputs inputs);
+
     ~Road();
-    std::vector<Lane*> getLanes();
-    int attemptSpawn(Inputs inputs, std::vector<Vehicle*>* vehicles, int* next_id_ptr);
+
+    std::vector<Lane *> getLanes();
+
+    int attemptSpawn(Inputs inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr);
 
 #ifdef DEBUG
     void printRoad();

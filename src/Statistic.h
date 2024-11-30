@@ -14,12 +14,18 @@
 class Statistic {
 private:
     std::vector<double> values;
+
 public:
     Statistic();
+
     ~Statistic();
+
     void addValue(double value);
+
     double getAverage();
+
     double getVariance();
+
     int getNumSamples();
 };
 

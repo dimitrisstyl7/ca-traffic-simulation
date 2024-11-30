@@ -17,7 +17,7 @@
  * @param initial_position initial site number of the Vehicle in the Lane
  * @param inputs instance of the Inputs class with the simulation inputs
  */
-Vehicle::Vehicle(Lane* lane_ptr, int id, int initial_position, Inputs inputs) {
+Vehicle::Vehicle(Lane *lane_ptr, int id, int initial_position, Inputs inputs) {
     // Set the ID number of the Vehicle
     this->id = id;
 
@@ -52,7 +52,8 @@ Vehicle::Vehicle(Lane* lane_ptr, int id, int initial_position, Inputs inputs) {
     this->time_on_road = 0;
 }
 
-Vehicle::~Vehicle() {}
+Vehicle::~Vehicle() {
+}
 
 /**
  * Update the perceived gaps between the Vehicle and the surrounding Vehicles in the Road
@@ -60,7 +61,7 @@ Vehicle::~Vehicle() {}
  * @return 0 if successful, nonzero otherwise
 
  */
-int Vehicle::updateGaps(Road* road_ptr) {
+int Vehicle::updateGaps(Road *road_ptr) {
     // Locate the preceding Vehicle and update the forward gap
     this->gap_forward = this->lane_ptr->getSize() - 1;
     for (int i = this->position + 1; i < this->lane_ptr->getSize(); i++) {
@@ -75,7 +76,7 @@ int Vehicle::updateGaps(Road* road_ptr) {
     this->look_other_forward = this->look_forward;
 
     // Determine the other lane of interest
-    Lane* other_lane_ptr;
+    Lane *other_lane_ptr;
     if (this->lane_ptr->getLaneNumber() == 0) {
         other_lane_ptr = road_ptr->getLanes()[1];
     } else {
@@ -109,15 +110,14 @@ int Vehicle::updateGaps(Road* road_ptr) {
  * @param road_ptr pointer to the Road in which the Vehicle is on
  * @return 0 if successful, nonzero otherwise
  */
-int Vehicle::performLaneSwitch(Road* road_ptr) {
+int Vehicle::performLaneSwitch(Road *road_ptr) {
     // Evaluate if the Vehicle will change lanes and then perform the lane change
     if (this->gap_forward < this->look_forward &&
         this->gap_other_forward > this->look_other_forward &&
         this->gap_other_backward > this->look_other_backward &&
-        ((double) rand()) / ((double) RAND_MAX) <= this->prob_change ) {
-
+        ((double) rand()) / ((double) RAND_MAX) <= this->prob_change) {
         // Determine the lane that the Vehicle is switching to
-        Lane* other_lane_ptr;
+        Lane *other_lane_ptr;
         if (this->lane_ptr->getLaneNumber() == 0) {
             other_lane_ptr = road_ptr->getLanes()[1];
         } else {
@@ -126,7 +126,7 @@ int Vehicle::performLaneSwitch(Road* road_ptr) {
 
 #ifdef DEBUG
         std::cout << "vehicle " << this->id << " switched lane " << this->lane_ptr->getLaneNumber() << " -> "
-            << other_lane_ptr->getLaneNumber() << std::endl;
+                << other_lane_ptr->getLaneNumber() << std::endl;
 #endif
 
         // Copy the Vehicle pointer to the other Lane
@@ -156,7 +156,7 @@ int Vehicle::performLaneMove() {
         this->speed++;
 #ifdef DEBUG
         std::cout << "vehicle " << this->id << " increased speed " << this->speed - 1 << " -> " << this->speed
-            << std::endl;
+                << std::endl;
 #endif
     }
 
@@ -168,11 +168,11 @@ int Vehicle::performLaneMove() {
 #endif
 
     if (this->speed > 0) {
-        if ( ((double) rand()) / ((double) RAND_MAX) <= this->prob_slow_down ) {
+        if (((double) rand()) / ((double) RAND_MAX) <= this->prob_slow_down) {
             this->speed--;
 #ifdef DEBUG
             std::cout << "vehicle " << this->id << " decreased speed " << this->speed + 1 << " -> " << this->speed
-                << std::endl;
+                    << std::endl;
 #endif
         }
     }
@@ -240,12 +240,13 @@ int Vehicle::setSpeed(int speed) {
     // Return with no errors
     return 0;
 }
+
 /**
  * Debug method for printing the gap information of the Vehicle
  */
 #ifdef DEBUG
 void Vehicle::printGaps() {
     std::cout << "vehicle " << std::setw(2) << this->id << " gaps, >:" << this->gap_forward << " ^>:"
-        << this->gap_other_forward << " ^<:" << this->gap_other_backward << std::endl;
+            << this->gap_other_forward << " ^<:" << this->gap_other_backward << std::endl;
 }
 #endif

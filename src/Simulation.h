@@ -12,21 +12,23 @@
 #include "Statistic.h"
 
 /**
- * Class for the simulation. Has a method for running the simulation in parallel using OpenMP with a specified number
- * of threads.
+ * Class for the simulation. Has a method for running the simulation.
  */
 class Simulation {
 private:
-    Road* road_ptr;
+    Road *road_ptr;
     int time;
-    std::vector<Vehicle*> vehicles;
+    std::vector<Vehicle *> vehicles;
     Inputs inputs;
     int next_id;
-    Statistic* travel_time;
+    Statistic *travel_time;
+
 public:
     Simulation(Inputs inputs);
+
     ~Simulation();
-    int run_simulation(int num_threads);
+
+    int run_simulation();
 };
 
 

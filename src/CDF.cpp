@@ -20,14 +20,13 @@ int CDF::read_cdf(std::string file_name) {
 
     // Check of the input file was loaded properly
     if (!file) {
-        std::cout << "error: failure to open "<< file_name <<  " file!" << std::endl;
+        std::cout << "error: failure to open " << file_name << " file!" << std::endl;
         return 1;
     }
 
     // Read each line into the CDF information
     std::string line;
-    while (std::getline(file, line))
-    {
+    while (std::getline(file, line)) {
         this->x.push_back(std::stod(line.substr(0, line.find(','))));
         this->cdf.push_back(std::stod(line.substr(1, line.find(','))));
     }

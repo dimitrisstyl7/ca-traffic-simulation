@@ -5,9 +5,11 @@
 #include <cmath>
 #include "Statistic.h"
 
-Statistic::Statistic() {}
+Statistic::Statistic() {
+}
 
-Statistic::~Statistic() {}
+Statistic::~Statistic() {
+}
 
 /**
  * Adds a sample to the statistic

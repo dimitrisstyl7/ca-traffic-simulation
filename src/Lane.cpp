@@ -3,7 +3,6 @@
  */
 
 #include <cstdlib>
-#include <cstdio>
 #include <sstream>
 #include <iomanip>
 
@@ -64,7 +63,7 @@ bool Lane::hasVehicleInSite(int site) {
  * @param vehicle_ptr pointer to the Vehicle to add to the site
  * @return 0 if successful, nonzero otherwise
  */
-int Lane::addVehicle(int site, Vehicle* vehicle_ptr) {
+int Lane::addVehicle(int site, Vehicle *vehicle_ptr) {
     // Place the Vehicle in the site
     this->sites[site].push_back(vehicle_ptr);
 
@@ -94,13 +93,13 @@ int Lane::removeVehicle(int site) {
  * @param interarrival_time_cdf CDF of the Vehicle interarrival times
  * @return
  */
-int Lane::attemptSpawn(Inputs inputs, std::vector<Vehicle*>* vehicles, int* next_id_ptr, CDF* interarrival_time_cdf) {
+int Lane::attemptSpawn(Inputs inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr, CDF *interarrival_time_cdf) {
     if (this->steps_to_spawn == 0) {
         if (!this->hasVehicleInSite(0)) {
             // Spawn Vehicle
 #ifdef DEBUG
             std::cout << "creating vehicle " << (*next_id_ptr) << " in lane " << this->lane_num << " at site " << 0
-                      << std::endl;
+                    << std::endl;
 #endif
             this->sites[0].push_front(new Vehicle(this, *next_id_ptr, 0, inputs));
             (*next_id_ptr)++;

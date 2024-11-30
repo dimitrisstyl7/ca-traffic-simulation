@@ -18,7 +18,7 @@ class Lane;
  */
 class Vehicle {
 private:
-    Lane* lane_ptr;
+    Lane *lane_ptr;
     int id;
     int position;
     int speed;
@@ -34,13 +34,20 @@ private:
     int time_on_road;
 
 public:
-    Vehicle(Lane* lane_ptr, int id, int initial_position, Inputs inputs);
+    Vehicle(Lane *lane_ptr, int id, int initial_position, Inputs inputs);
+
     ~Vehicle();
-    int updateGaps(Road* road_ptr);
-    int performLaneSwitch(Road* road_ptr);
+
+    int updateGaps(Road *road_ptr);
+
+    int performLaneSwitch(Road *road_ptr);
+
     int performLaneMove();
+
     int getId();
+
     double getTravelTime(Inputs inputs);
+
     int setSpeed(int speed);
 
 #ifdef DEBUG
