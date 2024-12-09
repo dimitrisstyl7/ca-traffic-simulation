@@ -48,7 +48,7 @@ To build the simulation program, run the following commands
 
     $ mkdir build; cd build
     $ cmake ../.
-    $ make
+    $ make; cd ../test
 
 This will build the executable "cats".
 
@@ -57,7 +57,7 @@ commands
 
     $ mkdir build; cd build
     $ cmake ../. -DCMAKE_BUILD_TYPE=Debug
-    $ make
+    $ make; cd ../test
 
 This will build the executable "cats" in debug mode. The debug mode makes the
 following modifications to the program:
@@ -90,4 +90,8 @@ the cumulative probability for those interarrival times. A sample CDF file is
 included in the root directory of the repositoryTo run the program, execute 
 the command
 
-    $ ./cats
+    $ mpirun -np <nprocess> ./cats
+
+where:
+
+    <nprocess> - the number of processes that you want to run the program with.
