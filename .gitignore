@@ -99,3 +99,4 @@ fabric.properties
 cmake-build-*/
 
 build
+test/cats
