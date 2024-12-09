@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <iomanip>
 
-#include "Statistic.h"
 #include "Vehicle.h"
 #include "Lane.h"
 #include "Road.h"
@@ -17,7 +16,7 @@
  * @param initial_position initial site number of the Vehicle in the Lane
  * @param inputs instance of the Inputs class with the simulation inputs
  */
-Vehicle::Vehicle(Lane *lane_ptr, int id, int initial_position, Inputs inputs) {
+Vehicle::Vehicle(Lane *lane_ptr, const int id, const int initial_position, const Inputs &inputs) {
     // Set the ID number of the Vehicle
     this->id = id;
 
@@ -50,9 +49,6 @@ Vehicle::Vehicle(Lane *lane_ptr, int id, int initial_position, Inputs inputs) {
 
     // Initialize the time spend on the Road
     this->time_on_road = 0;
-}
-
-Vehicle::~Vehicle() {
 }
 
 /**
@@ -115,7 +111,7 @@ int Vehicle::performLaneSwitch(Road *road_ptr) {
     if (this->gap_forward < this->look_forward &&
         this->gap_other_forward > this->look_other_forward &&
         this->gap_other_backward > this->look_other_backward &&
-        ((double) rand()) / ((double) RAND_MAX) <= this->prob_change) {
+        static_cast<double>(rand()) / static_cast<double>(RAND_MAX) <= this->prob_change) {
         // Determine the lane that the Vehicle is switching to
         Lane *other_lane_ptr;
         if (this->lane_ptr->getLaneNumber() == 0) {
@@ -168,7 +164,7 @@ int Vehicle::performLaneMove() {
 #endif
 
     if (this->speed > 0) {
-        if (((double) rand()) / ((double) RAND_MAX) <= this->prob_slow_down) {
+        if (static_cast<double>(rand()) / static_cast<double>(RAND_MAX) <= this->prob_slow_down) {
             this->speed--;
 #ifdef DEBUG
             std::cout << "vehicle " << this->id << " decreased speed " << this->speed + 1 << " -> " << this->speed
@@ -179,7 +175,7 @@ int Vehicle::performLaneMove() {
 
     if (this->speed > 0) {
         // Compute the new position of the vehicle
-        int new_position = (this->position + this->speed) % this->lane_ptr->getSize();
+        const int new_position = (this->position + this->speed) % this->lane_ptr->getSize();
 
         // If the vehicle reached the end of the road, remove the Vehicle from the Lane and return the time on road
         if (this->position > new_position) {
@@ -189,6 +185,8 @@ int Vehicle::performLaneMove() {
 
             // Remove vehicle from the Road
             this->lane_ptr->removeVehicle(this->position);
+
+            // TODO: Send vehicle to next process or if last process remove it
 
             // Return the time on the Road
             return this->time_on_road;
@@ -216,7 +214,7 @@ int Vehicle::performLaneMove() {
  * Getter method for the ID number of the Vehicle
  * @return
  */
-int Vehicle::getId() {
+int Vehicle::getId() const {
     return this->id;
 }
 
@@ -225,7 +223,7 @@ int Vehicle::getId() {
  * @param inputs
  * @return
  */
-double Vehicle::getTravelTime(Inputs inputs) {
+double Vehicle::getTravelTime(const Inputs &inputs) const {
     return inputs.step_size * this->time_on_road;
 }
 
@@ -234,7 +232,7 @@ double Vehicle::getTravelTime(Inputs inputs) {
  * @param speed
  * @return
  */
-int Vehicle::setSpeed(int speed) {
+int Vehicle::setSpeed(const int speed) {
     this->speed = speed;
 
     // Return with no errors
@@ -245,7 +243,7 @@ int Vehicle::setSpeed(int speed) {
  * Debug method for printing the gap information of the Vehicle
  */
 #ifdef DEBUG
-void Vehicle::printGaps() {
+void Vehicle::printGaps() const {
     std::cout << "vehicle " << std::setw(2) << this->id << " gaps, >:" << this->gap_forward << " ^>:"
             << this->gap_other_forward << " ^<:" << this->gap_other_backward << std::endl;
 }

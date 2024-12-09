@@ -17,15 +17,14 @@ class Lane;
  * simulation.
  */
 class Vehicle {
-private:
     Lane *lane_ptr;
     int id;
     int position;
     int speed;
     int max_speed;
-    int gap_forward;
-    int gap_other_forward;
-    int gap_other_backward;
+    int gap_forward{};
+    int gap_other_forward{};
+    int gap_other_backward{};
     int look_forward;
     int look_other_forward;
     int look_other_backward;
@@ -34,9 +33,9 @@ private:
     int time_on_road;
 
 public:
-    Vehicle(Lane *lane_ptr, int id, int initial_position, Inputs inputs);
+    Vehicle(Lane *lane_ptr, int id, int initial_position, const Inputs &inputs);
 
-    ~Vehicle();
+    ~Vehicle() = default;
 
     int updateGaps(Road *road_ptr);
 
@@ -44,14 +43,14 @@ public:
 
     int performLaneMove();
 
-    int getId();
+    [[nodiscard]] int getId() const;
 
-    double getTravelTime(Inputs inputs);
+    [[nodiscard]] double getTravelTime(const Inputs &inputs) const;
 
     int setSpeed(int speed);
 
 #ifdef DEBUG
-    void printGaps();
+    void printGaps() const;
 #endif
 };
 
