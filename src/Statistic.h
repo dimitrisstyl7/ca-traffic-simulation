@@ -12,21 +12,20 @@
  * adding samples to the statistic, or getting mean and variance
  */
 class Statistic {
-private:
     std::vector<double> values;
 
 public:
-    Statistic();
+    Statistic() = default;
 
-    ~Statistic();
+    ~Statistic() = default;
 
     void addValue(double value);
 
-    double getAverage();
+    [[nodiscard]] double getAverage() const;
 
-    double getVariance();
+    [[nodiscard]] double getVariance() const;
 
-    int getNumSamples();
+    [[nodiscard]] int getNumSamples() const;
 };
 
 
