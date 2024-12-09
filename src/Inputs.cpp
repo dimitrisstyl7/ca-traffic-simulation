@@ -5,7 +5,6 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <sstream>
 
 #include "Inputs.h"
 
@@ -14,7 +13,7 @@
  * @param line a string which is a line from the input file
  * @return the parameter on the line
  */
-std::string parseLine(std::string line) {
+std::string parseLine(const std::string &line) {
     return line.substr(0, line.find(' '));
 }
 
