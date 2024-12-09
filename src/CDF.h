@@ -12,14 +12,13 @@
  * Class for a Cumulative Distribution Function that has a method for sampling a point from the distribution.
  */
 class CDF {
-private:
     std::vector<float> x;
     std::vector<float> cdf;
 
 public:
-    int read_cdf(std::string file_name);
+    int read_cdf(const std::string &file_name);
 
-    double query();
+    [[nodiscard]] double query() const;
 };
 
 
