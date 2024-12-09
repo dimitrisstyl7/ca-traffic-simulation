@@ -10,6 +10,7 @@
 
 #include "Inputs.h"
 #include "CDF.h"
+#include "ProcessData.h"
 
 // Forward Declarations
 class Vehicle;
@@ -19,27 +20,27 @@ class Vehicle;
  * to all the information about the vehicles on the road through its methods.
  */
 class Lane {
-private:
     std::vector<std::deque<Vehicle *> > sites;
     int lane_num;
     int steps_to_spawn;
 
 public:
-    Lane(Inputs inputs, int lane_num);
+    Lane(const Inputs &inputs, int lane_num, const ProcessData &process_data);
 
-    int getSize();
+    [[nodiscard]] int getSize() const;
 
-    int getLaneNumber();
+    [[nodiscard]] int getLaneNumber() const;
 
-    bool hasVehicleInSite(int site);
+    [[nodiscard]] bool hasVehicleInSite(int site) const;
 
     int addVehicle(int site, Vehicle *vehicle_ptr);
 
     int removeVehicle(int site);
 
-    int attemptSpawn(Inputs inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr, CDF *interarrival_time_cdf);
+    int attemptSpawn(const Inputs &inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr,
+                     const CDF *interarrival_time_cdf);
 #ifdef DEBUG
-    void printLane();
+    void printLane() const;
 #endif
 };
 

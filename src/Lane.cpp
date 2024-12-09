@@ -14,14 +14,31 @@
  * Constructor for the Lane class
  * @param inputs instance of the Inputs class with simulation inputs
  * @param lane_num the number of lane in the road, starting with zero as the first lane
+ * @param process_data Contains the rank and size of the MPI process, represented
+ *                     by an instance of the `ProcessData` class. This is used to
+ *                     manage distributed simulation across multiple processes.
  */
-Lane::Lane(Inputs inputs, int lane_num) {
+Lane::Lane(const Inputs &inputs, const int lane_num, const ProcessData &process_data) {
 #ifdef DEBUG
     std::cout << "creating lane " << lane_num << "...";
 #endif
     // Allocate memory for the vehicle pointers list
-    this->sites.reserve(inputs.length);
-    this->sites.resize(inputs.length);
+
+    // Remainder when dividing the total sites among processes
+    const int remainder = inputs.length % process_data.getSize();
+
+    // Number of sites assigned to each process
+    const int n_of_elements = inputs.length / process_data.getSize();
+
+    // If this is the last process, allocate additional sites to account for the remainder
+    if (process_data.getRank() == process_data.getSize() - 1) {
+        this->sites.reserve(n_of_elements + remainder); // Reserve memory for the base number plus the remainder
+        this->sites.resize(n_of_elements + remainder); // Resize to include the remainder
+    } else {
+        // For other processes, allocate memory for the base number of sites
+        this->sites.reserve(n_of_elements); // Reserve memory for the base number of sites
+        this->sites.resize(n_of_elements); // Resize to the base number of sites
+    }
 
     // Set the lane number for the lane
     this->lane_num = lane_num;
@@ -36,15 +53,15 @@ Lane::Lane(Inputs inputs, int lane_num) {
  * Getter method for the number of sites in the Lane
  * @return number of sites in the Lane
  */
-int Lane::getSize() {
-    return this->sites.size();
+int Lane::getSize() const {
+    return static_cast<int>(this->sites.size());
 }
 
 /**
  * Getter method for the Lane's number
  * @return the number of the Lane
  */
-int Lane::getLaneNumber() {
+int Lane::getLaneNumber() const {
     return this->lane_num;
 }
 
@@ -53,8 +70,8 @@ int Lane::getLaneNumber() {
  * @param site the site in which to check for a Vehicle
  * @return whether or not the Lane has a Vehicle in the site
  */
-bool Lane::hasVehicleInSite(int site) {
-    return !(this->sites[site].empty());
+bool Lane::hasVehicleInSite(const int site) const {
+    return !this->sites[site].empty();
 }
 
 /**
@@ -63,7 +80,7 @@ bool Lane::hasVehicleInSite(int site) {
  * @param vehicle_ptr pointer to the Vehicle to add to the site
  * @return 0 if successful, nonzero otherwise
  */
-int Lane::addVehicle(int site, Vehicle *vehicle_ptr) {
+int Lane::addVehicle(const int site, Vehicle *vehicle_ptr) {
     // Place the Vehicle in the site
     this->sites[site].push_back(vehicle_ptr);
 
@@ -76,7 +93,7 @@ int Lane::addVehicle(int site, Vehicle *vehicle_ptr) {
  * @param site which site to remove the Vehicle from
  * @return 0 if successful, nonzero otherwise
  */
-int Lane::removeVehicle(int site) {
+int Lane::removeVehicle(const int site) {
     // Remove the Vehicle from the site
     this->sites[site].pop_front();
 
@@ -93,7 +110,8 @@ int Lane::removeVehicle(int site) {
  * @param interarrival_time_cdf CDF of the Vehicle interarrival times
  * @return
  */
-int Lane::attemptSpawn(Inputs inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr, CDF *interarrival_time_cdf) {
+int Lane::attemptSpawn(const Inputs &inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr,
+                       const CDF *interarrival_time_cdf) {
     if (this->steps_to_spawn == 0) {
         if (!this->hasVehicleInSite(0)) {
             // Spawn Vehicle
@@ -101,17 +119,16 @@ int Lane::attemptSpawn(Inputs inputs, std::vector<Vehicle *> *vehicles, int *nex
             std::cout << "creating vehicle " << (*next_id_ptr) << " in lane " << this->lane_num << " at site " << 0
                     << std::endl;
 #endif
-            this->sites[0].push_front(new Vehicle(this, *next_id_ptr, 0, inputs));
-            (*next_id_ptr)++;
+            this->sites[0].push_front(new Vehicle(this, (*next_id_ptr)++, 0, inputs));
             vehicles->push_back(this->sites[0].front());
 
             // Randomly choose the Vehicles initial speed to be zero bases in slow down probability
-            if (((double) std::rand()) / ((double) RAND_MAX) < inputs.prob_slow_down) {
+            if (static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX) < inputs.prob_slow_down) {
                 vehicles->back()->setSpeed(0);
             }
 
             // "Schedule" next Vehicle spawn
-            this->steps_to_spawn = (int) (interarrival_time_cdf->query() / inputs.step_size);
+            this->steps_to_spawn = static_cast<int>(interarrival_time_cdf->query() / inputs.step_size);
         }
     } else {
         this->steps_to_spawn--;
@@ -125,13 +142,13 @@ int Lane::attemptSpawn(Inputs inputs, std::vector<Vehicle *> *vehicles, int *nex
  * Debug function to print the Lane to visualize the sites
  */
 #ifdef DEBUG
-void Lane::printLane() {
+void Lane::printLane() const {
     std::ostringstream lane_string_stream;
-    for (int i = 0; i < (int) this->sites.size(); i++) {
-        if (this->sites[i].empty()) {
+    for (const auto &site: this->sites) {
+        if (site.empty()) {
             lane_string_stream << "[   ]";
         } else {
-            lane_string_stream << "[" << std::setw(3) << this->sites[i].front()->getId() << "]";
+            lane_string_stream << "[" << std::setw(3) << site.front()->getId() << "]";
         }
     }
     std::cout << lane_string_stream.str() << std::endl;
