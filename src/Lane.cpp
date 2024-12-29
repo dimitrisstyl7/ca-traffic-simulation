@@ -3,10 +3,14 @@
  */
 
 #include <cstdlib>
+#include <cstdio>
 #include <sstream>
 #include <iomanip>
 
 #include "Lane.h"
+
+#include <mpi/mpi.h>
+
 #include "Vehicle.h"
 #include "Inputs.h"
 
@@ -19,9 +23,9 @@
  *                     manage distributed simulation across multiple processes.
  */
 Lane::Lane(const Inputs &inputs, const int lane_num, const ProcessData &process_data) {
-#ifdef DEBUG
-    std::cout << "creating lane " << lane_num << "...";
-#endif
+    /*#ifdef DEBUG
+        std::cout << "creating lane " << lane_num << "...";
+    #endif*/
     // Allocate memory for the vehicle pointers list
 
     // Remainder when dividing the total sites among processes
@@ -42,12 +46,18 @@ Lane::Lane(const Inputs &inputs, const int lane_num, const ProcessData &process_
 
     // Set the lane number for the lane
     this->lane_num = lane_num;
-#ifdef DEBUG
-    std::cout << "done, lane " << lane_num << " created with length " << this->sites.size() << std::endl;
-#endif
+    /*#ifdef DEBUG
+        std::cout << "done, lane " << lane_num << " created with length " << this->sites.size() << std::endl;
+    #endif*/
 
     this->steps_to_spawn = 0;
 }
+
+// TODO: Add docstrings
+Lane::Lane(const int lane_number) {
+    this->lane_num = lane_number;
+}
+
 
 /**
  * Getter method for the number of sites in the Lane
@@ -78,11 +88,13 @@ bool Lane::hasVehicleInSite(const int site) const {
  * Adds a Vehicle to a site in the Lane
  * @param site which site to add the Vehicle to
  * @param vehicle_ptr pointer to the Vehicle to add to the site
+ * @param push_back // TODO: fill
  * @return 0 if successful, nonzero otherwise
  */
-int Lane::addVehicle(const int site, Vehicle *vehicle_ptr) {
+int Lane::addVehicle(const int site, Vehicle *vehicle_ptr, const bool push_back) {
     // Place the Vehicle in the site
-    this->sites[site].push_back(vehicle_ptr);
+    if (push_back) this->sites[site].push_back(vehicle_ptr);
+    else this->sites[site].push_front(vehicle_ptr);
 
     // Return with zero errors
     return 0;
@@ -115,10 +127,10 @@ int Lane::attemptSpawn(const Inputs &inputs, std::vector<Vehicle *> *vehicles, i
     if (this->steps_to_spawn == 0) {
         if (!this->hasVehicleInSite(0)) {
             // Spawn Vehicle
-#ifdef DEBUG
-            std::cout << "creating vehicle " << (*next_id_ptr) << " in lane " << this->lane_num << " at site " << 0
-                    << std::endl;
-#endif
+            /*#ifdef DEBUG
+                        std::cout << "creating vehicle " << (*next_id_ptr) << " in lane " << this->lane_num << " at site " << 0
+                                << std::endl;
+            #endif*/
             this->sites[0].push_front(new Vehicle(this, (*next_id_ptr)++, 0, inputs));
             vehicles->push_back(this->sites[0].front());
 

@@ -4,10 +4,15 @@
 
 #include <cstdlib>
 #include <iomanip>
+#include <list>
+#include <mpi/mpi.h>
 
 #include "Vehicle.h"
 #include "Lane.h"
 #include "Road.h"
+#include "Serialization.h"
+
+int inform_receiver_to_run_simulation = 1;
 
 /**
  * Constructor for the Vehicle
@@ -126,7 +131,7 @@ int Vehicle::performLaneSwitch(Road *road_ptr) {
 #endif
 
         // Copy the Vehicle pointer to the other Lane
-        other_lane_ptr->addVehicle(this->position, this);
+        other_lane_ptr->addVehicle(this->position, this, true);
 
         // Remove the Vehicle pointer from the current Lane
         this->lane_ptr->removeVehicle(this->position);
@@ -141,35 +146,40 @@ int Vehicle::performLaneSwitch(Road *road_ptr) {
 
 /**
  * Moves the Vehicle to the next site in the current Lane during the time-step based on the speed of the Vehicle
+ * @param process_data Contains the rank and size of the MPI process, represented
+ *                     by an instance of the `ProcessData` class. This is used to
+ *                     manage distributed simulation across multiple processes.
+ * @param send_tags // TODO: fill
+ * @param last_recv_tag_id // TODO: fill
  * @return 0 if successful, nonzero otherwise
  */
-int Vehicle::performLaneMove() {
+int Vehicle::performLaneMove(const ProcessData &process_data, std::list<int> &send_tags, int &last_recv_tag_id) {
     // Increment the time on road counter
     this->time_on_road++;
 
     // Update Vehicle speed based on vehicle speed update rules
     if (this->speed != this->max_speed) {
         this->speed++;
-#ifdef DEBUG
-        std::cout << "vehicle " << this->id << " increased speed " << this->speed - 1 << " -> " << this->speed
-                << std::endl;
-#endif
+        /*#ifdef DEBUG
+                std::cout << "vehicle " << this->id << " increased speed " << this->speed - 1 << " -> " << this->speed
+                        << std::endl;
+        #endif*/
     }
 
     this->speed = std::min(this->speed, this->gap_forward);
-#ifdef DEBUG
-    if (this->speed == 0) {
-        std::cout << "vehicle " << this->id << " stopped behind preceding vehicle" << std::endl;
-    }
-#endif
+    /*#ifdef DEBUG
+        if (this->speed == 0) {
+            std::cout << "vehicle " << this->id << " stopped behind preceding vehicle" << std::endl;
+        }
+    #endif*/
 
     if (this->speed > 0) {
         if (static_cast<double>(rand()) / static_cast<double>(RAND_MAX) <= this->prob_slow_down) {
             this->speed--;
-#ifdef DEBUG
-            std::cout << "vehicle " << this->id << " decreased speed " << this->speed + 1 << " -> " << this->speed
-                    << std::endl;
-#endif
+            /*#ifdef DEBUG
+                        std::cout << "vehicle " << this->id << " decreased speed " << this->speed + 1 << " -> " << this->speed
+                                << std::endl;
+            #endif*/
         }
     }
 
@@ -179,25 +189,46 @@ int Vehicle::performLaneMove() {
 
         // If the vehicle reached the end of the road, remove the Vehicle from the Lane and return the time on road
         if (this->position > new_position) {
-#ifdef DEBUG
-            std::cout << "vehicle " << this->id << " spent " << this->time_on_road << " steps on the road" << std::endl;
-#endif
+            /*#ifdef DEBUG
+                        std::cout << "vehicle " << this->id << " spent " << this->time_on_road << " steps on the road" << std::endl;
+            #endif*/
+
+            // Send vehicle to next process only if number of processes are more than 2 and current process is not the last one
+            if (process_data.getSize() > 1 && process_data.getRank() < process_data.getSize() - 1) {
+                const VehicleData vehicle_data = Serialization::serialize(*this);
+                const int receiver = process_data.getRank() + 1;
+
+                // Inform the next process that it should start running its own simulation
+                if (inform_receiver_to_run_simulation) {
+                    MPI_Send(&inform_receiver_to_run_simulation, 1, MPI_INT, receiver, 0, MPI_COMM_WORLD);
+                    inform_receiver_to_run_simulation = 0;
+                }
+
+                const int tag = send_tags.front();
+
+                // Update the `last_recv_tag_id` only if current rank is 0 (first process)
+                if (process_data.getRank() == 0) last_recv_tag_id = tag;
+
+                MPI_Send(&vehicle_data, sizeof(vehicle_data), MPI_BYTE, receiver, tag, MPI_COMM_WORLD);
+                send_tags.pop_front();
+
+                // std::cout << "process " << process_data.getRank() << ": MPI_Send to process " << process_data.
+                //         getRank() + 1 << " with send tag " << tag << "\n"; // TODO: remove
+            }
 
             // Remove vehicle from the Road
             this->lane_ptr->removeVehicle(this->position);
-
-            // TODO: Send vehicle to next process or if last process remove it
 
             // Return the time on the Road
             return this->time_on_road;
         }
 
-#ifdef DEBUG
-        std::cout << "vehicle " << this->id << " moved " << this->position << " -> " << new_position << std::endl;
-#endif
+        /*#ifdef DEBUG
+                std::cout << "vehicle " << this->id << " moved " << this->position << " -> " << new_position << std::endl;
+        #endif*/
 
         // Update Vehicle position in the Lane object sites
-        this->lane_ptr->addVehicle(new_position, this);
+        this->lane_ptr->addVehicle(new_position, this, true);
 
         // Remove vehicle from the old site
         this->lane_ptr->removeVehicle(this->position);
@@ -228,18 +259,6 @@ double Vehicle::getTravelTime(const Inputs &inputs) const {
 }
 
 /**
- * Setter method for the speed of the Vehicle
- * @param speed
- * @return
- */
-int Vehicle::setSpeed(const int speed) {
-    this->speed = speed;
-
-    // Return with no errors
-    return 0;
-}
-
-/**
  * Debug method for printing the gap information of the Vehicle
  */
 #ifdef DEBUG
@@ -248,3 +267,157 @@ void Vehicle::printGaps() const {
             << this->gap_other_forward << " ^<:" << this->gap_other_backward << std::endl;
 }
 #endif
+
+// TODO: Add docstrings
+void Vehicle::setId(const int id) {
+    this->id = id;
+}
+
+// TODO: Add docstrings
+int Vehicle::getLaneNumber() const {
+    return this->lane_ptr->getLaneNumber();
+}
+
+// TODO: Add docstrings
+void Vehicle::setLaneNumber(Lane *lane_ptr) {
+    this->lane_ptr = lane_ptr;
+}
+
+
+// TODO: Add docstrings
+int Vehicle::getPosition() const {
+    return this->position;
+}
+
+// TODO: Add docstrings
+int Vehicle::getSpeed() const {
+    return this->speed;
+}
+
+// TODO: Add docstrings
+int Vehicle::getMaxSpeed() const {
+    return this->max_speed;
+}
+
+// TODO: Add docstrings
+int Vehicle::getGapForward() const {
+    return this->gap_forward;
+}
+
+// TODO: Add docstrings
+int Vehicle::getGapOtherForward() const {
+    return this->gap_other_forward;
+}
+
+// TODO: Add docstrings
+int Vehicle::getGapOtherBackward() const {
+    return this->gap_other_backward;
+}
+
+// TODO: Add docstrings
+int Vehicle::getLookForward() const {
+    return look_forward;
+}
+
+// TODO: Add docstrings
+int Vehicle::getLookOtherForward() const {
+    return this->look_other_forward;
+}
+
+// TODO: Add docstrings
+int Vehicle::getLookOtherBackward() const {
+    return this->look_other_backward;
+}
+
+// TODO: Add docstrings
+double Vehicle::getProbSlowDown() const {
+    return this->prob_slow_down;
+}
+
+// TODO: Add docstrings
+double Vehicle::getProbChange() const {
+    return this->prob_change;
+}
+
+// TODO: Add docstrings
+int Vehicle::getTimeOnRoad() const {
+    return this->time_on_road;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setLaneNumber(const int lane_number) {
+    this->lane_ptr = new Lane(lane_number);
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setPosition(const int position) {
+    this->position = position;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setSpeed(const int speed) {
+    this->speed = speed;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setMaxSpeed(const int max_speed) {
+    this->max_speed = max_speed;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setGapForward(const int gap_forward) {
+    this->gap_forward = gap_forward;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setGapOtherForward(const int gap_other_forward) {
+    this->gap_other_forward = gap_other_forward;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setGapOtherBackward(const int gap_other_backward) {
+    this->gap_other_backward = gap_other_backward;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setLookForward(const int look_forward) {
+    this->look_forward = look_forward;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setLookOtherForward(const int look_other_forward) {
+    this->look_other_forward = look_other_forward;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setLookOtherBackward(const int look_other_backward) {
+    this->look_other_backward = look_other_backward;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setProbSlowDown(const double prob_slow_down) {
+    this->prob_slow_down = prob_slow_down;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setProbChange(const double prob_change) {
+    this->prob_change = prob_change;
+    return this;
+}
+
+// TODO: Add docstrings
+Vehicle *Vehicle::setTimeOnRoad(const int time_on_road) {
+    this->time_on_road = time_on_road;
+    return this;
+}

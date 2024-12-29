@@ -22,10 +22,12 @@ class Vehicle;
 class Lane {
     std::vector<std::deque<Vehicle *> > sites;
     int lane_num;
-    int steps_to_spawn;
+    int steps_to_spawn{};
 
 public:
     Lane(const Inputs &inputs, int lane_num, const ProcessData &process_data);
+
+    explicit Lane(int lane_number);
 
     [[nodiscard]] int getSize() const;
 
@@ -33,7 +35,7 @@ public:
 
     [[nodiscard]] bool hasVehicleInSite(int site) const;
 
-    int addVehicle(int site, Vehicle *vehicle_ptr);
+    int addVehicle(int site, Vehicle *vehicle_ptr, bool push_back);
 
     int removeVehicle(int site);
 

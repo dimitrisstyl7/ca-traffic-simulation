@@ -40,17 +40,41 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    const auto process_data = ProcessData(rank, size);
+
     // Create a Simulation object for the current simulation
-    auto *simulation_ptr = new Simulation(inputs, ProcessData(rank, size));
+    auto *simulation_ptr = new Simulation(inputs, process_data);
+
+    // Wait previous process to send the first vehicle
+    int run_simulation;
+    if (const int sender = process_data.getRank() - 1; sender >= 0) {
+        std::cout << "process " << sender + 1 << ": waiting for run simulation\n\n"; // TODO: Remove
+        MPI_Recv(&run_simulation, 1, MPI_INT, sender, 0, MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
+    }
+
+    // TODO: Add description
+    const Road *road = simulation_ptr->getRoad();
 
     // Run the Simulation
-    simulation_ptr->run_simulation();
+    std::cout << "process " << rank << ": start run simulation\n\n"; // TODO: Remove
+    simulation_ptr->run_simulation(process_data, *road);
 
     // Delete the Simulation object
     delete simulation_ptr;
 
+    // TODO: Remove
+    std::cout << "\n\n-------------------------- PROCESS " << process_data.getRank() << " BARRIER\n\n";
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    // TODO: Remove
+    std::cout << "\n\n-------------------------- PROCESS " << process_data.getRank() << " FINALIZE\n\n";
+
     // Finalize the MPI environment
     MPI_Finalize();
+
+    // TODO: Remove
+    std::cout << "\n\n-------------------------- PROCESS " << process_data.getRank() << " FINISHED\n\n";
 
     // Return with no errors
     return 0;

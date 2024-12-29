@@ -28,7 +28,9 @@ public:
 
     ~Simulation();
 
-    int run_simulation();
+    int run_simulation(const ProcessData &process_data, const Road &road);
+
+    [[nodiscard]] Road *getRoad() const;
 };
 
 

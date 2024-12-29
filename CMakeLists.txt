@@ -15,4 +15,4 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -DDEBUG -Wall -g")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../test)
 
 # Add the executable
-add_executable(cats src/main.cpp src/Road.cpp src/Road.h src/Lane.cpp src/Lane.h src/Vehicle.cpp src/Vehicle.h src/Simulation.cpp src/Simulation.h src/Inputs.cpp src/Inputs.h src/Statistic.cpp src/Statistic.h src/CDF.cpp src/CDF.h src/ProcessData.h)
+add_executable(cats src/main.cpp src/Road.cpp src/Road.h src/Lane.cpp src/Lane.h src/Vehicle.cpp src/Vehicle.h src/Simulation.cpp src/Simulation.h src/Inputs.cpp src/Inputs.h src/Statistic.cpp src/Statistic.h src/CDF.cpp src/CDF.h src/ProcessData.h src/Serialization.cpp src/Serialization.h)

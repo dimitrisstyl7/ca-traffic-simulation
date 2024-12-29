@@ -14,16 +14,16 @@
  *                     manage distributed simulation across multiple processes.
  */
 Road::Road(const Inputs &inputs, const ProcessData &process_data) {
-#ifdef DEBUG
-    std::cout << "creating new road with " << inputs.num_lanes << " lanes..." << std::endl;
-#endif
+    /*#ifdef DEBUG
+        std::cout << "creating new road with " << inputs.num_lanes << " lanes..." << std::endl;
+    #endif*/
     // Create the Lane objects for the Road
     for (int i = 0; i < inputs.num_lanes; i++) {
         this->lanes.push_back(new Lane(inputs, i, process_data));
     }
-#ifdef DEBUG
-    std::cout << "done creating road" << std::endl;
-#endif
+    /*#ifdef DEBUG
+        std::cout << "done creating road" << std::endl;
+    #endif*/
 
     this->interarrival_time_cdf = new CDF();
     if (const int status = this->interarrival_time_cdf->read_cdf("interarrival-cdf.dat"); status != 0) {
@@ -47,6 +47,11 @@ Road::~Road() {
  */
 std::vector<Lane *> Road::getLanes() {
     return this->lanes;
+}
+
+// TODO: Add docstrings
+Lane *Road::getLane(const int lane_num) const {
+    return this->lanes.at(lane_num);
 }
 
 /**

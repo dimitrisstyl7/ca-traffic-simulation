@@ -27,6 +27,8 @@ public:
 
     std::vector<Lane *> getLanes();
 
+    [[nodiscard]] Lane *getLane(int lane_num) const;
+
     int attemptSpawn(const Inputs &inputs, std::vector<Vehicle *> *vehicles, int *next_id_ptr) const;
 
 #ifdef DEBUG
