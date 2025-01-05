@@ -8,6 +8,7 @@
 #include "Inputs.h"
 #include "ProcessData.h"
 #include "Simulation.h"
+#include "Serialization.h"
 
 /**
  * Main point of execution of the program
@@ -34,6 +35,9 @@ int main(int argc, char **argv) {
         std::cout << "||    CELLULAR AUTOMATA TRAFFIC SIMULATION    ||" << std::endl;
         std::cout << "================================================" << std::endl;
     }
+
+    // If number of process are more than 2, create MPIVehicleDataType
+    if (size > 1) Serialization::getInstance().createMPIVehicleDataType();
 
     // Create an Inputs object to contain the simulation parameters
     if (inputs.loadFromFile() != 0) {
@@ -69,6 +73,9 @@ int main(int argc, char **argv) {
 
     // TODO: Remove
     std::cout << "\n\n-------------------------- PROCESS " << process_data.getRank() << " FINALIZE\n\n";
+
+    // If number of process are more than 2, deallocate the resources assigned to MPIVehicleDataType
+    if (size > 1) Serialization::getInstance().freeMPIVehicleDataType();
 
     // Finalize the MPI environment
     MPI_Finalize();

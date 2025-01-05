@@ -120,8 +120,8 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
             //         ", send_tags.size()=" << send_tags.size() << ", condition=" << condition << std::endl;
 
             if (new_vehicle) {
-                MPI_Recv(&vehicle_data, sizeof(vehicle_data), MPI_BYTE, sender, recv_tag, MPI_COMM_WORLD,
-                         MPI_STATUSES_IGNORE);
+                MPI_Recv(&vehicle_data, 1, Serialization::getInstance().getMPIVehicleDataType(), sender, recv_tag,
+                         MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
 
                 send_tags.push_back(recv_tag);
                 recv_tags.pop_front();
@@ -132,8 +132,12 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
                 Lane *lane = road.getLane(vehicle->getLaneNumber());
                 vehicle->setLaneNumber(lane);
                 vehicle->setId(this->next_id++);
-                lane->addVehicle(0, vehicle, false);
-                vehicles.push_back(vehicle);
+                lane->addVehicle(0, vehicle, false); // TODO: We should check if site 0 is empty
+                vehicles.push_back(vehicle); // TODO: == vehicles->push_back(this->sites[0].front());
+                /*
+                 * TODO: When in site 0 of next process there is a vehicle, we should set the speed of last vehicle to
+                 * TODO: 0, if it is in the last site of current process
+                 */
             }
         }
 

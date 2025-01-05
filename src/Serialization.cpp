@@ -5,6 +5,43 @@
 #include "Vehicle.h"
 #include "Serialization.h"
 
+Serialization *Serialization::instance = nullptr;
+
+// TODO: Add docstrings
+void Serialization::createMPIVehicleDataType() {
+    constexpr MPI_Datatype types[] = {
+        MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT,
+        MPI_INT, MPI_INT, MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_INT
+    };
+    const int block_lengths[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    constexpr MPI_Aint offsets[] = {
+        offsetof(VehicleData, lane_num),
+        offsetof(VehicleData, position),
+        offsetof(VehicleData, speed),
+        offsetof(VehicleData, max_speed),
+        offsetof(VehicleData, gap_forward),
+        offsetof(VehicleData, gap_other_forward),
+        offsetof(VehicleData, gap_other_backward),
+        offsetof(VehicleData, look_forward),
+        offsetof(VehicleData, look_other_forward),
+        offsetof(VehicleData, look_other_backward),
+        offsetof(VehicleData, prob_slow_down),
+        offsetof(VehicleData, prob_change),
+        offsetof(VehicleData, time_on_road)
+    };
+    MPI_Type_create_struct(13, block_lengths, offsets, types, &MPIVehicleDataType);
+    MPI_Type_commit(&MPIVehicleDataType);
+}
+
+// TODO: Add docstrings
+void Serialization::freeMPIVehicleDataType() {
+    MPI_Type_free(&MPIVehicleDataType);
+}
+
+MPI_Datatype Serialization::getMPIVehicleDataType() const {
+    return MPIVehicleDataType;
+}
+
 // TODO: Add docstrings
 VehicleData Serialization::serialize(const Vehicle &vehicle) {
     return VehicleData{

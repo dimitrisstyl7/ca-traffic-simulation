@@ -209,7 +209,8 @@ int Vehicle::performLaneMove(const ProcessData &process_data, std::list<int> &se
                 // Update the `last_recv_tag_id` only if current rank is 0 (first process)
                 if (process_data.getRank() == 0) last_recv_tag_id = tag;
 
-                MPI_Send(&vehicle_data, sizeof(vehicle_data), MPI_BYTE, receiver, tag, MPI_COMM_WORLD);
+                MPI_Send(&vehicle_data, 1, Serialization::getInstance().getMPIVehicleDataType(), receiver, tag,
+                         MPI_COMM_WORLD);
                 send_tags.pop_front();
 
                 // std::cout << "process " << process_data.getRank() << ": MPI_Send to process " << process_data.
