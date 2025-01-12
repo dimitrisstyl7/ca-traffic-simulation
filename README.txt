@@ -38,7 +38,7 @@ simulations using cellular automata" by M. Rickert, et al.
 https://doi.org/10.1016/0378-4371(95)00442-4
 
 The software requires a GNU C++ compiler supporting C++17 with OpenMP enabled.
-The software requres CMake 3.9 or higher to build the program.
+The software requires CMake 3.9 or higher to build the program.
 
 -------------------------------------------------------------------------------
                                 2. INSTALLATION
@@ -62,10 +62,8 @@ commands
 This will build the executable "cats" in debug mode. The debug mode makes the
 following modifications to the program:
 
-    1. The random number generator is seeded with a constant, so that the
-        the results are reproducible.
-    2. The number of threads is locked to 1
-    3. Print statements are included in many parts of the code to assist in the
+    1. The random number generator is seeded with a constant, so that the results are reproducible.
+    2. Print statements are included in many parts of the code to assist in the
         debugging process. These include simple visualizations of the road at
         each step in the simulation.
 
