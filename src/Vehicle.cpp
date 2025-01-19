@@ -12,8 +12,6 @@
 #include "Road.h"
 #include "Serialization.h"
 
-int inform_receiver_to_run_simulation = 1;
-
 /**
  * Constructor for the Vehicle
  * @param lane_ptr pointer to the Lane in which the Vehicle starts in
@@ -59,17 +57,111 @@ Vehicle::Vehicle(Lane *lane_ptr, const int id, const int initial_position, const
 /**
  * Update the perceived gaps between the Vehicle and the surrounding Vehicles in the Road
  * @param road_ptr pointer to the Road that the Vehicle is in
+ * @param process_data TODO: fill
+ * @param gapTags TODO: fill
  * @return 0 if successful, nonzero otherwise
-
  */
-int Vehicle::updateGaps(Road *road_ptr) {
-    // Locate the preceding Vehicle and update the forward gap
-    this->gap_forward = this->lane_ptr->getSize() - 1;
-    for (int i = this->position + 1; i < this->lane_ptr->getSize(); i++) {
+int Vehicle::updateGaps(Road *road_ptr, const ProcessData &process_data, const int gapTags[]) {
+    const int j = process_data.getRank(); // current process rank
+    const int lane_size = this->lane_ptr->getSize();
+    const int this_vehicle_global_pos = lane_size * j + this->position;
+
+    /* Array that stores the global position of the first and last vehicles for the current process lanes.
+       int x1 => first vehicle's global position of current process lane 0
+       int x2 => first vehicle's global position of current process lane 1
+       int y1 => last vehicle's global position of current process lane 0
+       int y2 => last vehicle's global position of current process lane 1
+
+       z ∈ { x1, y1, x2, y2 }
+
+       int global_position => lane_size * j + z
+
+       if global_position == -1, means that no vehicle exists in lane 0.
+       if global_position != -1, contains the vehicle's global position.
+
+       int global_positions[] = { x1, x2, y1, y2 } */
+    const int x1 = road_ptr->getLane(0)->findPosOfFirstVehicle(this->position);
+    const int x2 = road_ptr->getLane(1)->findPosOfFirstVehicle(this->position);
+    const int y1 = road_ptr->getLane(0)->findPosOfLastVehicle(this->position);
+    const int y2 = road_ptr->getLane(1)->findPosOfLastVehicle(this->position);
+    const int global_positions[] = {
+        x1 != -1 ? lane_size * j + x1 : -1,
+        x2 != -1 ? lane_size * j + x2 : -1,
+        y1 != -1 ? lane_size * j + y1 : -1,
+        y2 != -1 ? lane_size * j + y2 : -1
+    };
+
+
+    int next_vehicles_pos[] = {-1, -1}, prev_vehicles_pos[] = {-1, -1};
+
+    if (process_data.getSize() > 1) {
+        const int current_rank = process_data.getRank();
+        const int next_rank = current_rank + 1;
+        const int prev_rank = current_rank - 1;
+
+        // Send the first and last vehicles for each lane, to the next and previous processes
+
+        // Send first two positions (x1, x2) to the next process
+        if (next_rank < process_data.getSize()) {
+            MPI_Send(global_positions, 2, MPI_INT, next_rank, gapTags[0], MPI_COMM_WORLD);
+        }
+
+        // Send last two positions (y1, y2) to the previous process
+        if (prev_rank >= 0) {
+            MPI_Send(&global_positions[2], 2, MPI_INT, prev_rank, gapTags[1], MPI_COMM_WORLD);
+        }
+
+        // Receive the first and last vehicles global position for each lane, from the next and previous processes
+
+        if (current_rank == 0) {
+            int next_rank_sent_data;
+            MPI_Iprobe(next_rank, gapTags[1], MPI_COMM_WORLD, &next_rank_sent_data, MPI_STATUS_IGNORE);
+
+            if (next_rank_sent_data) {
+                MPI_Recv(next_vehicles_pos, 2, MPI_INT, next_rank, gapTags[1], MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+        } else if (current_rank == process_data.getSize()-1) {
+            int prev_rank_sent_data;
+            MPI_Iprobe(prev_rank, gapTags[0], MPI_COMM_WORLD, &prev_rank_sent_data, MPI_STATUS_IGNORE);
+
+            if (prev_rank_sent_data) {
+                MPI_Recv(prev_vehicles_pos, 2, MPI_INT, prev_rank, gapTags[0], MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+        } else {
+            // if 0 < current_rank < process_data.getSize()-1
+            int next_rank_sent_data, prev_rank_sent_data;
+
+            MPI_Iprobe(next_rank, gapTags[1], MPI_COMM_WORLD, &next_rank_sent_data, MPI_STATUS_IGNORE);
+            MPI_Iprobe(prev_rank, gapTags[0], MPI_COMM_WORLD, &prev_rank_sent_data, MPI_STATUS_IGNORE);
+
+            if (next_rank_sent_data) {
+                MPI_Recv(next_vehicles_pos, 2, MPI_INT, next_rank, gapTags[1], MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+
+            if (prev_rank_sent_data) {
+                MPI_Recv(prev_vehicles_pos, 2, MPI_INT, prev_rank, gapTags[0], MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+        }
+    }
+
+    // Locate the preceding vehicle and update the forward gap
+    this->gap_forward = lane_size - 1;
+    for (int i = this->position + 1; i < lane_size; i++) {
         if (this->lane_ptr->hasVehicleInSite(i)) {
             this->gap_forward = i - this->position - 1;
             break;
         }
+
+        // If the number of the process equals 1, don't execute the code below
+        if (process_data.getSize() == 1) continue;
+
+        // If code execution reach this point, the gap will be calculated between this process and the next process.
+        // Assign upper limit, in case a preceding vehicle doesn't exist (next_vehicle_position == -1).
+        const int next_vehicle_pos = next_vehicles_pos[this->getLaneNumber()];
+        this->gap_forward = next_vehicle_pos != -1 ? next_vehicle_pos - this_vehicle_global_pos - 1 : 2*(lane_size - 1);
+
+        /*std::cout << "process " << process_data.getRank() << ": this->gap_forward=" << this->gap_forward << std::endl;
+        // TODO: remove*/
     }
 
     // Update vehicle look forward distances
@@ -77,29 +169,50 @@ int Vehicle::updateGaps(Road *road_ptr) {
     this->look_other_forward = this->look_forward;
 
     // Determine the other lane of interest
-    Lane *other_lane_ptr;
-    if (this->lane_ptr->getLaneNumber() == 0) {
-        other_lane_ptr = road_ptr->getLanes()[1];
-    } else {
-        other_lane_ptr = road_ptr->getLanes()[0];
-    }
+    const Lane *other_lane_ptr = this->lane_ptr->getLaneNumber() == 0
+                                     ? road_ptr->getLanes()[1]
+                                     : road_ptr->getLanes()[0];
+
+    const int other_lane_number = other_lane_ptr->getLaneNumber(); // other lane number
 
     // Update the forward gap in the other lane
-    this->gap_other_forward = this->lane_ptr->getSize() - 1;
-    for (int i = this->position; i < this->lane_ptr->getSize(); i++) {
+    this->gap_other_forward = lane_size - 1;
+    for (int i = this->position; i < lane_size; i++) {
         if (other_lane_ptr->hasVehicleInSite(i)) {
             this->gap_other_forward = i - this->position - 1;
             break;
         }
+
+        // If the number of the process equals 1 or the process is the last one, don't execute the code below
+        if (process_data.getSize() == 1) continue;
+
+        // If code execution reach this point, the gap will be calculated between this process and the next process.
+        // Assign upper limit, in case a preceding vehicle doesn't exist (next_vehicle_position == -1).
+        const int next_vehicle_pos = next_vehicles_pos[other_lane_number];
+        this->gap_other_forward = next_vehicle_pos != -1 ? next_vehicle_pos - this_vehicle_global_pos - 1 : 2*(lane_size - 1);
+
+        /*std::cout << "process " << process_data.getRank() << ": this->gap_other_forward=" << this->gap_other_forward << std::endl;
+        // TODO: remove*/
     }
 
     // Update the backward gap in the other lane
-    this->gap_other_backward = this->lane_ptr->getSize() - 1;
+    this->gap_other_backward = lane_size - 1;
     for (int i = this->position; i >= 0; i--) {
         if (other_lane_ptr->hasVehicleInSite(i)) {
             this->gap_other_backward = this->position - i - 1;
             break;
         }
+
+        // If the number of the process equals 1, don't execute the code below
+        if (process_data.getSize() == 1) continue;
+
+        // If code execution reach this point, the gap will be calculated between this process and the next process.
+        // Assign upper limit, in case a preceding vehicle doesn't exist (next_vehicle_position == -1).
+        const int prev_vehicle_pos = prev_vehicles_pos[this->getLaneNumber()];
+        this->gap_other_backward = prev_vehicle_pos != -1 ? this_vehicle_global_pos - prev_vehicle_pos - 1 : 2*(lane_size - 1);
+
+        /*std::cout << "process " << process_data.getRank() << ": this->gap_other_backward=" << this->gap_other_backward << std::endl;
+        // TODO: remove*/
     }
 
     // Return with zero errors
@@ -183,6 +296,11 @@ int Vehicle::performLaneMove(const ProcessData &process_data, std::list<int> &se
         }
     }
 
+    if (process_data.getRank() == 1) { // TODO: remove
+        for (int i=0; i<lane_ptr->getSize(); i++)
+            std::cout <<"process 1: " << "lanes[0].sites["<<i<<"].size="<<lane_ptr->sites[i].size() << std::endl;
+    }
+
     if (this->speed > 0) {
         // Compute the new position of the vehicle
         const int new_position = (this->position + this->speed) % this->lane_ptr->getSize();
@@ -195,15 +313,9 @@ int Vehicle::performLaneMove(const ProcessData &process_data, std::list<int> &se
 
             // Send vehicle to next process only if number of processes are more than 2 and current process is not the last one
             if (process_data.getSize() > 1 && process_data.getRank() < process_data.getSize() - 1) {
+                // Serialize vehicle
                 const VehicleData vehicle_data = Serialization::serialize(*this);
                 const int receiver = process_data.getRank() + 1;
-
-                // Inform the next process that it should start running its own simulation
-                if (inform_receiver_to_run_simulation) {
-                    MPI_Send(&inform_receiver_to_run_simulation, 1, MPI_INT, receiver, 0, MPI_COMM_WORLD);
-                    inform_receiver_to_run_simulation = 0;
-                }
-
                 const int tag = send_tags.front();
 
                 // Update the `last_recv_tag_id` only if current rank is 0 (first process)
@@ -212,9 +324,8 @@ int Vehicle::performLaneMove(const ProcessData &process_data, std::list<int> &se
                 MPI_Send(&vehicle_data, 1, Serialization::getInstance().getMPIVehicleDataType(), receiver, tag,
                          MPI_COMM_WORLD);
                 send_tags.pop_front();
-
-                // std::cout << "process " << process_data.getRank() << ": MPI_Send to process " << process_data.
-                //         getRank() + 1 << " with send tag " << tag << "\n"; // TODO: remove
+                std::cout << "process " << process_data.getRank() << ": MPI_Send to process " << process_data.
+                    getRank() + 1 << " with send tag " << tag << "\n"; // TODO: remove
             }
 
             // Remove vehicle from the Road
@@ -257,6 +368,11 @@ int Vehicle::getId() const {
  */
 double Vehicle::getTravelTime(const Inputs &inputs) const {
     return inputs.step_size * this->time_on_road;
+}
+
+// TODO: Add docstrings
+Lane* Vehicle::getLane() const {
+    return this->lane_ptr;
 }
 
 /**

@@ -40,7 +40,7 @@ public:
 
     ~Vehicle() = default;
 
-    int updateGaps(Road *road_ptr);
+    int updateGaps(Road *road_ptr, const ProcessData &process_data, const int gapTags[]);
 
     int performLaneSwitch(Road *road_ptr);
 
@@ -49,6 +49,8 @@ public:
     [[nodiscard]] int getId() const;
 
     [[nodiscard]] double getTravelTime(const Inputs &inputs) const;
+
+    [[nodiscard]] Lane *getLane() const;
 
     [[nodiscard]] int getLaneNumber() const;
 
@@ -111,5 +113,4 @@ public:
 #endif
 };
 
-
-#endif //CA_TRAFFIC_SIMULATION_VEHICLE_H
+#endif // CA_TRAFFIC_SIMULATION_VEHICLE_H
