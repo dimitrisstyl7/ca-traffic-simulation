@@ -2,7 +2,6 @@
 // Created by dimit on 12/12/24.
 //
 
-#include "Vehicle.h"
 #include "Serialization.h"
 
 Serialization *Serialization::instance = nullptr;
