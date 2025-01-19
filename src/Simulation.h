@@ -7,10 +7,10 @@
 
 #include <vector>
 
-#include "Road.h"
 #include "Inputs.h"
-#include "Statistic.h"
 #include "ProcessData.h"
+#include "Road.h"
+#include "Statistic.h"
 
 /**
  * Class for the simulation. Has a method for running the simulation.
@@ -31,6 +31,8 @@ public:
     int run_simulation(const ProcessData &process_data, const Road &road);
 
     [[nodiscard]] Road *getRoad() const;
+
+    void updateGaps(const ProcessData &process_data, const int gapTags[]);
 };
 
 

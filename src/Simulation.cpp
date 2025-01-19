@@ -2,17 +2,17 @@
  * Copyright (C) 2019 Maitreya Venkataswamy - All Rights Reserved
  */
 
-#include <chrono>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <list>
 #include <mpi/mpi.h>
 
-#include "Road.h"
 #include "Simulation.h"
 #include "ProcessData.h"
-#include "Vehicle.h"
+#include "Road.h"
 #include "Serialization.h"
+#include "Vehicle.h"
 
 /**
  * Constructor for the Simulation
@@ -71,12 +71,20 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
     // Lists that contains the tags for sending and receiving a vehicle between processes
     std::list<int> send_tags, recv_tags;
 
-    // `last_recv_tag_id` contains the last send tag id from process 0,
-    // and `process_0_finished` indicates if process 0 finished execution.
-    int last_recv_tag_id, process_0_finished = 0;
+    // `last_recv_tag_id` contains the last send tag id from process 0
+    int last_recv_tag_id;
+
+    // `process_0_finished` indicates if `this->time >= this->inputs.max_time` and the process 0 doesn't have any remaining vehicle
+    int process_0_finished = 0;
+
+    // `last_process_finished` indicates if the last process finished execution of run_simulation
+    int last_process_finished = 0;
+
+    // `bcast_completion_last_recv_tag` indicates if the `last_recv_tag_id` was broadcast
+    int bcast_completion_last_recv_tag = 0;
 
     if (process_data.getSize() > 1) {
-        // Determine the last receive tag id (upper bound)
+        // Determine the last receive tag id (upper limit)
         last_recv_tag_id = this->inputs.max_time;
 
         // Initialize the tags lists with the maximum possible number of vehicles that can be spawned
@@ -86,14 +94,13 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
         }
     }
 
-    bool condition;
-
     do {
-        if (process_data.getRank() == 0) {
-            condition = this->time < this->inputs.max_time;
-            process_0_finished = condition ? 0 : 1;
-        } else condition = recv_tags.front() <= last_recv_tag_id; // TODO: Check condition
-
+        if (process_data.getSize() > 1) {
+            // If the last process finished execution, inform the other processes to exit run_simulation
+            const int last_process = process_data.getSize()-1;
+            if (process_data.getRank() == last_process && recv_tags.front() == last_recv_tag_id) last_process_finished = 1;
+            MPI_Bcast(&last_process_finished, 1, MPI_INT, last_process, MPI_COMM_WORLD);
+        }
 
         /*#ifdef DEBUG
                 std::cout << "road configuration at time " << time << ":" << std::endl;
@@ -101,60 +108,44 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
                 std::cout << "performing lane switches..." << std::endl;
         #endif*/
 
-        // Execute receive vehicle logic only if current process rank is greater than 0 (ignore first process),
-        // and if current process should continue receiving new vehicles from the previous process.
-        if (process_data.getRank() > 0 /*&& !recv_tags.empty() && !stop_receiving_vehicles*/
-            /* TODO: I should check the logic of stop_receiving_vehicles*/) {
-            const int sender = process_data.getRank() - 1; // the process which may send a new vehicle
-            VehicleData vehicle_data;
-            const int recv_tag = recv_tags.front();
-
+        // Execute receive vehicle logic only if current process rank is greater than 0 (ignore first process)
+        if (process_data.getRank() > 0) {
             int new_vehicle;
+            const int sender = process_data.getRank() - 1; // the process which may send a new vehicle
+            const int recv_tag = recv_tags.front();
+            VehicleData vehicle_data;
 
             // Check if previous process (sender) sent new vehicle
             MPI_Iprobe(sender, recv_tag, MPI_COMM_WORLD, &new_vehicle, MPI_STATUS_IGNORE);
-            // std::cout << "process " << sender + 1 << ": new vehicle=" << new_vehicle << std::endl; // TODO: remove
-
-            // TODO: Remove
-            // std::cout << "\nprocess " << process_data.getRank() << ": recv_tags.size()=" << recv_tags.size() <<
-            //         ", send_tags.size()=" << send_tags.size() << ", condition=" << condition << std::endl;
 
             if (new_vehicle) {
-                MPI_Recv(&vehicle_data, 1, Serialization::getInstance().getMPIVehicleDataType(), sender, recv_tag,
-                         MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
+                MPI_Recv(&vehicle_data, 1, Serialization::getInstance().getMPIVehicleDataType(),
+                    sender, recv_tag, MPI_COMM_WORLD, MPI_STATUSES_IGNORE);
 
                 send_tags.push_back(recv_tag);
                 recv_tags.pop_front();
 
+                // Deserialize vehicle_data
                 Vehicle *vehicle = Serialization::deserialize(vehicle_data);
-                // std::cout << "process " << process_data.getRank() << ": MPI_Recv from process " << process_data.
-                //         getRank() - 1 << " with tag " << recv_tag << "\n"; // TODO: remove
                 Lane *lane = road.getLane(vehicle->getLaneNumber());
                 vehicle->setLaneNumber(lane);
                 vehicle->setId(this->next_id++);
-                lane->addVehicle(0, vehicle, false); // TODO: We should check if site 0 is empty
-                vehicles.push_back(vehicle); // TODO: == vehicles->push_back(this->sites[0].front());
-                /*
-                 * TODO: When in site 0 of next process there is a vehicle, we should set the speed of last vehicle to
-                 * TODO: 0, if it is in the last site of current process
-                 */
+                lane->addVehicle(0, vehicle, false);
+                vehicles.push_back(vehicle);
+
+                std::cout << "process " << process_data.getRank() << ": MPI_Recv from process " << process_data.
+                        getRank() - 1 << " with tag " << recv_tag << "\n"; // TODO: remove
             }
         }
 
-        // // TODO: remove
-        // if (!condition) {
-        //     std::cout << "\nprocess " << process_data.getRank() << ": recv_tags.size()=" << recv_tags.size() <<
-        //             ", vehicles.size()=" << vehicles.size() << std::endl;
-        // }
+        // TODO: remove
+        std::cout << "\nprocess " << process_data.getRank() << ": recv_tags.size()=" << recv_tags.size() <<
+                ", vehicles.size()=" << vehicles.size() << std::endl;
+
+        const int gapTags[] = {this->inputs.max_time+1, this->inputs.max_time+2};
+        updateGaps(process_data, gapTags);
 
         // Perform the lane switch step for all vehicles
-        for (const auto &vehicle: this->vehicles) {
-            vehicle->updateGaps(this->road_ptr);
-            /*#ifdef DEBUG
-                        vehicle->printGaps();
-            #endif*/
-        }
-
         for (const auto &vehicle: this->vehicles) {
             vehicle->performLaneSwitch(this->road_ptr);
         }
@@ -164,14 +155,9 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
                 std::cout << "performing lane movements..." << std::endl;
         #endif*/
 
-        // Perform the independent lane updates
-        for (const auto &vehicle: this->vehicles) {
-            vehicle->updateGaps(this->road_ptr);
-            /*#ifdef DEBUG
-                        vehicle->printGaps();
-            #endif*/
-        }
+        updateGaps(process_data, gapTags);
 
+        // Perform the independent lane updates
         for (int n = 0; n < static_cast<int>(this->vehicles.size()); n++) {
             if (const int time_on_road = this->vehicles[n]->performLaneMove(process_data, send_tags, last_recv_tag_id);
                 time_on_road != 0) {
@@ -197,42 +183,25 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
         }
         vehicles_to_remove.clear();
 
-        // Spawn new Vehicles
-        if (process_data.getRank() == 0) this->road_ptr->attemptSpawn(this->inputs, &this->vehicles, &this->next_id);
+        // Spawn new vehicles
+        if (process_data.getRank() == 0 && this->time < this->inputs.max_time) this->road_ptr->attemptSpawn(this->inputs, &this->vehicles, &this->next_id);
 
-        // Broadcast the `process_0_finished` only if processes are more than 2
-        if (process_data.getSize() > 1) {
-            // // TODO: remove
-            // if (!condition) {
-            //     std::cout << "\nprocess " << process_data.getRank() << ": BEFORE MPI_IBcast process_0_finished" <<
-            //             std::endl;
-            // }
-
-            MPI_Request request;
-            MPI_Ibcast(&process_0_finished, 1, MPI_INT, 0, MPI_COMM_WORLD, &request);
-            // MPI_Bcast(&process_0_finished, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-            // std::cout << "process " << process_data.getRank() << ": LAST RECV TAG ID " << last_recv_tag_id <<
-            //         ", current recv tag " << recv_tags.front() << "\n"; // TODO: remove
-
-            // TODO: remove
-            // std::cout << "process " << process_data.getRank() << ": PROCESS 0 FINISHED " << process_0_finished << "\n";
-
-            // // TODO: remove
-            // if (!condition) {
-            //     std::cout << "\nprocess " << process_data.getRank() << ": AFTER MPI_IBcast process_0_finished" <<
-            //             std::endl;
-            // }
+        // Broadcast the `process_0_finished` only if processes are more than 2, and the `last_recv_tag_id` was not yet broadcast.
+        if (process_data.getSize() > 1 && !bcast_completion_last_recv_tag) {
+            MPI_Bcast(&process_0_finished, 1, MPI_INT, 0, MPI_COMM_WORLD);
         }
 
-        // Broadcast the `last_recv_tag_id` only if processes are more than 2 and `process_0_finished == 1`
-        if (process_data.getSize() > 1 && process_0_finished) {
+        // Broadcast the `last_recv_tag_id` only if processes are more than 2, `process_0_finished == 1`, and the `last_recv_tag_id` was not yet broadcast.
+        if (process_data.getSize() > 1 && process_0_finished && !bcast_completion_last_recv_tag) {
             MPI_Bcast(&last_recv_tag_id, 1, MPI_INT, 0, MPI_COMM_WORLD);
-            process_0_finished = 0; // set it back to 0, so other processes don't execute again this block of code
-            // std::cout << "process " << process_data.getRank() << ": LAST RECV TAG ID " << last_recv_tag_id <<
-            //         ", current recv tag " << recv_tags.front() << "\n"; // TODO: remove
+            bcast_completion_last_recv_tag = 1;
+            std::cout << "process " << process_data.getRank() << ": LAST RECV TAG ID " << last_recv_tag_id <<
+                    ", current recv tag " << recv_tags.front() << "\n"; // TODO: remove
         }
-    } while (condition);
+
+        if (process_data.getRank() == 0) process_0_finished = this->time >= this->inputs.max_time && vehicles.empty();
+
+    } while (process_data.getSize() > 1 ? !last_process_finished : !process_0_finished);
 
     // Only last process should print the results
     if (process_data.getRank() == process_data.getSize() - 1) {
@@ -268,4 +237,13 @@ int Simulation::run_simulation(const ProcessData &process_data, const Road &road
 // TODO: Add docstrings
 Road *Simulation::getRoad() const {
     return this->road_ptr;
+}
+
+void Simulation::updateGaps(const ProcessData &process_data, const int gapTags[]) {
+    for (const auto &vehicle: this->vehicles) {
+        vehicle->updateGaps(this->road_ptr, process_data, gapTags);
+        /*#ifdef DEBUG
+                    vehicle->printGaps();
+        #endif*/
+    }
 }
