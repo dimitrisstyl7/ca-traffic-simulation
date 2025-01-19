@@ -296,11 +296,6 @@ int Vehicle::performLaneMove(const ProcessData &process_data, std::list<int> &se
         }
     }
 
-    if (process_data.getRank() == 1) { // TODO: remove
-        for (int i=0; i<lane_ptr->getSize(); i++)
-            std::cout <<"process 1: " << "lanes[0].sites["<<i<<"].size="<<lane_ptr->sites[i].size() << std::endl;
-    }
-
     if (this->speed > 0) {
         // Compute the new position of the vehicle
         const int new_position = (this->position + this->speed) % this->lane_ptr->getSize();
