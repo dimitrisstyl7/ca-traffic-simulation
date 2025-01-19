@@ -3,16 +3,15 @@
  */
 
 #include <cstdlib>
-#include <cstdio>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 
 #include "Lane.h"
 
 #include <mpi/mpi.h>
 
-#include "Vehicle.h"
 #include "Inputs.h"
+#include "Vehicle.h"
 
 /**
  * Constructor for the Lane class
@@ -82,6 +81,22 @@ int Lane::getLaneNumber() const {
  */
 bool Lane::hasVehicleInSite(const int site) const {
     return !this->sites[site].empty();
+}
+
+// TODO: add description
+int Lane::findPosOfFirstVehicle(const int site) const {
+    for (int i = site + 1; i < this->getSize(); i++) {
+        if (!sites[i].empty()) return i;
+    }
+    return -1;
+}
+
+// TODO: add description
+int Lane::findPosOfLastVehicle(const int site) const {
+    for (int i = site - 1; i >= 0; i--) {
+        if (!sites[i].empty()) return i;
+    }
+    return -1;
 }
 
 /**

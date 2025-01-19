@@ -5,11 +5,11 @@
 #ifndef CA_TRAFFIC_SIMULATION_LANE_H
 #define CA_TRAFFIC_SIMULATION_LANE_H
 
-#include <vector>
 #include <deque>
+#include <vector>
 
-#include "Inputs.h"
 #include "CDF.h"
+#include "Inputs.h"
 #include "ProcessData.h"
 
 // Forward Declarations
@@ -34,6 +34,10 @@ public:
     [[nodiscard]] int getLaneNumber() const;
 
     [[nodiscard]] bool hasVehicleInSite(int site) const;
+
+    [[nodiscard]] int findPosOfFirstVehicle(int site) const;
+
+    [[nodiscard]] int findPosOfLastVehicle(int site) const;
 
     int addVehicle(int site, Vehicle *vehicle_ptr, bool push_back);
 
